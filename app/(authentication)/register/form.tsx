@@ -9,15 +9,81 @@ import {
   Input,
   Text,
   Flex,
+  Spinner,
   InputGroup,
   InputRightElement,
   IconButton,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import { ViewIcon, ViewOffIcon } from "@chakra-ui/icons";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { RegisterSchema } from "@/app/lib/actions";
+import * as z from "zod";
 
 const RegisterForm = () => {
+  const [status, setStatus] = useState<
+    "idle" | "registering" | "success" | "redirecting" | "error"
+  >("idle");
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const router = useRouter();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset
+  } = useForm<z.infer<typeof RegisterSchema>>({
+    resolver: zodResolver(RegisterSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const handleRegister = async (data: z.infer<typeof RegisterSchema>) => {
+    setStatus("idle");
+    setErrorMessage("");
+
+    try {
+      setStatus("registering");
+
+      const response = await fetch(`/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      const registerData = await response.json();
+      console.log(registerData)
+
+      if (response.ok) {
+        setStatus("success");
+        reset();
+
+        // setTimeout(() => {
+        //   setStatus("redirecting");
+        //   setTimeout(() => {
+        //     router.push("/login");
+        //   }, 2000);
+        // }, 2000);
+      } else {
+        setErrorMessage(
+          registerData.error || "An error occurred during registration"
+        );
+        setStatus("error");
+      }
+    } catch (error) {
+      setErrorMessage("An unexpected error occurred");
+      setStatus("error");
+    }
+  };
+
+  
   return (
     <Box
       display="grid"
@@ -64,38 +130,63 @@ const RegisterForm = () => {
             mb={4}
             width={{ base: "18rem", md: "20rem", lg: "26rem" }}
           >
-            <form method="POST">
-              <FormControl >
+            <form onSubmit={handleSubmit(handleRegister)} method="POST">
+            <FormControl isInvalid={!!errors.name}>
+                <FormLabel htmlFor="name" fontSize="lg" color="gray.900">
+                  Name
+                </FormLabel>
+                <Input
+                  id="name"
+                  {...register("name")}
+                  type="name"
+                  autoComplete="name"
+                  w="100%"
+                  focusBorderColor="#ED5734"
+                  placeholder="Enter your name"
+                  isDisabled={status === "registering"}
+                />
+                {errors.name && (
+                  <Text color="red.500" mt={1}>
+                    {errors.name.message}
+                  </Text>
+                )}
+              </FormControl>
+
+              <FormControl isInvalid={!!errors.email}>
                 <FormLabel htmlFor="email" fontSize="lg" color="gray.900">
                   Email address
                 </FormLabel>
                 <Input
                   id="email"
-
+                  {...register("email")}
                   type="email"
                   autoComplete="email"
                   w="100%"
                   focusBorderColor="#ED5734"
                   placeholder="Email address"
-
+                  isDisabled={status === "registering"}
                 />
-
+                {errors.email && (
+                  <Text color="red.500" mt={1}>
+                    {errors.email.message}
+                  </Text>
+                )}
               </FormControl>
 
-              <FormControl mt={4} mb={2} >
+              <FormControl mt={4} mb={2} isInvalid={!!errors.password}>
                 <FormLabel htmlFor="password" fontSize="lg" color="gray.900">
                   Password
                 </FormLabel>
                 <InputGroup display="flex" alignItems="center">
                   <Input
                     id="password"
-
+                    {...register("password")}
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     w="100%"
                     focusBorderColor="#ED5734"
                     placeholder="Password"
-
+                    isDisabled={status === "registering"}
                   />
                   <InputRightElement h="full">
                     <IconButton
@@ -112,9 +203,42 @@ const RegisterForm = () => {
                     />
                   </InputRightElement>
                 </InputGroup>
-
+                {errors.password && (
+                  <Text color="red.500" mt={1}>
+                    {errors.password.message}
+                  </Text>
+                )}
               </FormControl>
 
+              {status !== "idle" && (
+                <Box className="text-left italic">
+                  {status === "registering" && (
+                    <Box
+                      display="flex"
+                      alignItems="left"
+                      className="text-green-400"
+                    >
+                      <Spinner size="sm" mr={2} />{" "}
+                      <span>Registering user...</span>
+                    </Box>
+                  )}
+                  {status === "success" && (
+                    <Box className="text-green-500">
+                      <span>User registration successful</span>
+                    </Box>
+                  )}
+                  {status === "redirecting" && (
+                    <Box className="text-green-500">
+                      <span>Redirecting to login page...</span>
+                    </Box>
+                  )}
+                  {status === "error" && (
+                    <Box className="text-red-500">
+                      <span>{errorMessage}</span>
+                    </Box>
+                  )}
+                </Box>
+              )}
 
               <Button
                 type="submit"
@@ -131,6 +255,7 @@ const RegisterForm = () => {
                   bg: "#ED5734",
                   transition: "all 0.3s ease",
                 }}
+                isDisabled={status === "registering"}
               >
                 Submit
               </Button>
