@@ -4,13 +4,11 @@ import { z } from "zod";
 
 export type User = {
   id: string;
-  name: string;
   email: string;
   password: string;
 };
 
 export const RegisterSchema = z.object({
-  name: z.string().min(2).max(100).trim(),
   email: z.string().email().trim(),
   password: z.string().min(8).max(100).trim(),
 })
