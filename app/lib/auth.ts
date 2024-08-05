@@ -1,9 +1,9 @@
 import CredentialsProvider from "next-auth/providers/credentials";
-import { NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth";
 import { sql } from "@vercel/postgres";
 import bcrypt from "bcryptjs";
 
-export const authOptions: NextAuthOptions = {
+const handler = NextAuth({
   session: {
     strategy: "jwt",
   },
@@ -13,7 +13,7 @@ export const authOptions: NextAuthOptions = {
   },
   providers: [
     CredentialsProvider({
-      name: "Credentials",
+      name: "credentials",
       credentials: {
         email: {},
         password: {},
@@ -64,4 +64,4 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-};
+});
