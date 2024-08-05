@@ -10,42 +10,50 @@ import {
   Text,
   Flex,
   Spinner,
-  InputGroup,
-  InputRightElement,
-  IconButton,
 } from "@chakra-ui/react";
 import Link from "next/link";
-import { ViewIcon, ViewOffIcon } from "@chakra-ui/icons";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { RegisterSchema } from "@/app/lib/actions";
 import * as z from "zod";
+
+const RegisterSchema = z.object({
+  email: z
+    .string()
+    .email({ message: "Email is required " })
+    .min(4, { message: "Invalid email address" })
+    .trim(),
+  password: z
+    .string()
+    .min(1, { message: "Password is required" })
+    .min(8, { message: "Password must be at least 8 characters" })
+    .max(100)
+    .trim(),
+});
 
 const RegisterForm = () => {
   const [status, setStatus] = useState<
     "idle" | "registering" | "success" | "redirecting" | "error"
   >("idle");
-  const [errorMessage, setErrorMessage] = useState<string>("");
-  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [serverMessage, setServerMessage] = useState<string | null>(null);
   const router = useRouter();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset
+    reset,
   } = useForm<z.infer<typeof RegisterSchema>>({
     resolver: zodResolver(RegisterSchema),
     defaultValues: {
       email: "",
-      password: "",
+      password: ""
     },
   });
 
   const handleRegister = async (data: z.infer<typeof RegisterSchema>) => {
     setStatus("idle");
-    setErrorMessage("");
+    setServerMessage(null);
 
     try {
       setStatus("registering");
@@ -55,50 +63,45 @@ const RegisterForm = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formData),
       });
 
-      const registerData = await response.json();
-      console.log(registerData)
+      const result = await response.json();
 
       if (response.ok) {
         setStatus("success");
+        setServerMessage(result.message);
         reset();
 
-        // setTimeout(() => {
-        //   setStatus("redirecting");
-        //   setTimeout(() => {
-        //     router.push("/login");
-        //   }, 2000);
-        // }, 2000);
+        setTimeout(() => {
+          setStatus("redirecting");
+          setTimeout(() => {
+            router.push("/login");
+          }, 2000);
+        }, 2000);
       } else {
-        setErrorMessage(
-          registerData.error || "An error occurred during registration"
-        );
         setStatus("error");
+        setServerMessage(result.error);
       }
     } catch (error) {
-      setErrorMessage("An unexpected error occurred");
       setStatus("error");
+      setServerMessage("An error occurred. Please try again.");
     }
   };
 
-  
   return (
     <Box
-      display="grid"
-      h="100vh"
-      placeItems="center"
-      alignItems="center"
-      bg="white"
+    display="grid"
+    h="100vh"
+    placeItems="center"
+    alignItems="center"
+    bg="white"
     >
       <Box maxW="md" className="register-wrapper">
         <Flex
           flexDir="column"
           alignItems="center"
           justifyContent="center"
-          w="100%"
-          h="100%"
           color="black"
           className="container"
         >
@@ -131,27 +134,6 @@ const RegisterForm = () => {
             width={{ base: "18rem", md: "20rem", lg: "26rem" }}
           >
             <form onSubmit={handleSubmit(handleRegister)} method="POST">
-            <FormControl isInvalid={!!errors.name}>
-                <FormLabel htmlFor="name" fontSize="lg" color="gray.900">
-                  Name
-                </FormLabel>
-                <Input
-                  id="name"
-                  {...register("name")}
-                  type="name"
-                  autoComplete="name"
-                  w="100%"
-                  focusBorderColor="#ED5734"
-                  placeholder="Enter your name"
-                  isDisabled={status === "registering"}
-                />
-                {errors.name && (
-                  <Text color="red.500" mt={1}>
-                    {errors.name.message}
-                  </Text>
-                )}
-              </FormControl>
-
               <FormControl isInvalid={!!errors.email}>
                 <FormLabel htmlFor="email" fontSize="lg" color="gray.900">
                   Email address
@@ -177,32 +159,16 @@ const RegisterForm = () => {
                 <FormLabel htmlFor="password" fontSize="lg" color="gray.900">
                   Password
                 </FormLabel>
-                <InputGroup display="flex" alignItems="center">
-                  <Input
-                    id="password"
-                    {...register("password")}
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    w="100%"
-                    focusBorderColor="#ED5734"
-                    placeholder="Password"
-                    isDisabled={status === "registering"}
-                  />
-                  <InputRightElement h="full">
-                    <IconButton
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                      variant="ghost"
-                      onClick={() => setShowPassword((show) => !show)}
-                      icon={showPassword ? <ViewIcon /> : <ViewOffIcon />}
-                      size={"sm"}
-                      _hover={{
-                        bg: "transparent",
-                      }}
-                    />
-                  </InputRightElement>
-                </InputGroup>
+                <Input
+                  id="password"
+                  {...register("password")}
+                  type="password"
+                  autoComplete="current-password"
+                  w="100%"
+                  focusBorderColor="#ED5734"
+                  placeholder="Password"
+                  isDisabled={status === "registering"}
+                />
                 {errors.password && (
                   <Text color="red.500" mt={1}>
                     {errors.password.message}
@@ -224,7 +190,7 @@ const RegisterForm = () => {
                   )}
                   {status === "success" && (
                     <Box className="text-green-500">
-                      <span>User registration successful</span>
+                      <span>{serverMessage}</span>
                     </Box>
                   )}
                   {status === "redirecting" && (
@@ -234,7 +200,7 @@ const RegisterForm = () => {
                   )}
                   {status === "error" && (
                     <Box className="text-red-500">
-                      <span>{errorMessage}</span>
+                      <span>{serverMessage}</span>
                     </Box>
                   )}
                 </Box>
