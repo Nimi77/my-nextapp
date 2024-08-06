@@ -1,44 +1,43 @@
 import { NextResponse } from "next/server";
-import { createUser, RegisterSchema } from "@/app/lib/actions";
+import { RegisterSchema } from "@/app/schemas";
 import { hash } from "bcryptjs";
+import { createUser } from "@/lib/actions";
 
 export async function POST(request: Request) {
-    try {
-        const result = await request.json();
-        const validatedFields = RegisterSchema.safeParse(result)
+  try {
+    const registerData = await request.json();
+    const validatedField = RegisterSchema.safeParse(registerData);
 
-        if (!validatedFields.success) {
-            return {
-                message: 'Missing required field or invalid data',
-                errors: validatedFields.error.flatten().fieldErrors
-            }
-        }
-        const { name, email, password } = validatedFields.data
-
-        // Hashing the password
-        const hashedPassword = await hash(password, 10);
-        const user = {
-            name,
-            email,
-            password: hashedPassword,
-        };
-        console.log(user)
-        // Inserting the new user into the database
-        // await createUser(email, hashedPassword);
-        return NextResponse.json({ message: "User registered successfully" });
-
-    } catch (e: any) {
-        console.error("Error inserting user:", e);
-
-        if (e.message.includes("duplicate key value violates unique constraint")) {
-            return NextResponse.json(
-                { error: "User already exists" },
-                { status: 400 }
-            );
-        }
-        return NextResponse.json(
-            { error: "Internal Server Error" },
-            { status: 500 }
-        );
+    if (!validatedField.success) {
+      return NextResponse.json({ error: "Invalid field" });
     }
+
+    const { email, password } = validatedField.data;
+    const hashedPassword = await hash(password, 10);
+    const user = {
+      email,
+      password: hashedPassword,
+    };
+    console.log(user);
+    
+    // Inserting the new user into the database
+    await createUser(user);
+    return NextResponse.json({ message: "Registration Successfully!" });
+  
+  } catch (error: any) {
+    console.error("Error inserting user", error);
+
+    if (
+      error.message.includes("duplicate key value violates unique constraint")
+    ) {
+      return NextResponse.json(
+        { error: "User already exists" },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
 }
